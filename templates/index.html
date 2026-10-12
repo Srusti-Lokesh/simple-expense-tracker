@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simple Expense Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">₹</div>
+    <div>
+      <p class="eyebrow">PERSONAL FINANCE</p>
+      <h1>Simple Expense Tracker</h1>
+      <p class="subheading">A clearer view of where your money goes.</p>
+    </div>
+    <a class="export-button" href="{{ url_for('export_csv') }}">Export CSV ↗</a>
+  </header>
+
+  <main class="layout">
+    <section class="summary-grid" aria-label="Spending summary">
+      <article class="metric metric-primary">
+        <p class="metric-label">{{ 'MONTHLY' if month else 'TOTAL' }} SPENDING</p>
+        <p class="metric-value">₹{{ '%.2f'|format(total) }}</p>
+        <p class="metric-note">{{ 'For ' ~ month if month else 'Across all recorded expenses' }}</p>
+      </article>
+      <article class="metric">
+        <p class="metric-label">EXPENSE RECORDS</p>
+        <p class="metric-value">{{ count }}</p>
+        <p class="metric-note">{{ all_count }} saved in total</p>
+      </article>
+      <article class="metric">
+        <p class="metric-label">CATEGORIES</p>
+        <p class="metric-value">{{ category_summary|length }}</p>
+        <p class="metric-note">With spending activity in this view</p>
+      </article>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="messages">
+          {% for category, message in messages %}
+            <div class="alert {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="content-grid">
+      <section class="panel add-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">NEW RECORD</p><h2>Add an expense</h2></div>
+          <span class="heading-icon">＋</span>
+        </div>
+        <form action="{{ url_for('add_expense') }}" method="post" class="expense-form">
+          <label for="date">Expense date</label>
+          <input id="date" name="date" type="date" value="{{ today }}" required>
+          <label for="category">Category</label>
+          <select id="category" name="category" required>
+            {% for category in ['Food', 'Transport', 'Housing', 'Utilities', 'Shopping', 'Health', 'Entertainment', 'Education', 'Travel', 'Other'] %}
+              <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+          </select>
+          <label for="description">Description</label>
+          <input id="description" name="description" type="text" maxlength="120" placeholder="e.g. Lunch with colleagues" required>
+          <label for="amount">Amount (₹)</label>
+          <div class="amount-input"><span>₹</span><input id="amount" name="amount" type="number" min="0.01" max="999999999" step="0.01" placeholder="0.00" required></div>
+          <button class="primary-button" type="submit">Add expense <span>→</span></button>
+        </form>
+        <p class="form-footnote">Amounts must be greater than zero. Your records are saved to a CSV file.</p>
+      </section>
+
+      <section class="panel category-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">BREAKDOWN</p><h2>Spending by category</h2></div>
+          <span class="heading-icon">◒</span>
+        </div>
+        {% if category_summary %}
+          <div class="category-list">
+            {% for item in category_summary %}
+              <div class="category-row">
+                <div class="category-line"><span>{{ item.name }}</span><strong>₹{{ '%.2f'|format(item.total) }}</strong></div>
+                <div class="bar-track"><div class="bar-fill" style="width: {{ (item.total / total * 100) if total else 0 }}%"></div></div>
+                <p class="category-percent">{{ '%.1f'|format(item.total / total * 100 if total else 0) }}% of shown spending</p>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state"><span>◌</span><h3>No spending to summarize</h3><p>Add an expense to see your category breakdown.</p></div>
+        {% endif %}
+      </section>
+    </div>
+
+    <section class="panel transactions-panel">
+      <div class="panel-heading transactions-heading">
+        <div><p class="eyebrow">YOUR ACTIVITY</p><h2>Expense history</h2></div>
+        <form method="get" action="{{ url_for('index') }}" class="filter-form">
+          <label for="month">Filter month</label>
+          <input id="month" type="month" name="month" value="{{ month }}">
+          <button type="submit" class="filter-button">Apply</button>
+          {% if month %}<a class="clear-filter" href="{{ url_for('index') }}">Clear</a>{% endif %}
+        </form>
+      </div>
+      {% if expenses %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Expense</th><th>Category</th><th class="align-right">Amount</th><th></th></tr></thead>
+            <tbody>
+            {% for expense in expenses %}
+              <tr>
+                <td class="date-cell">{{ expense.date }}</td>
+                <td><span class="expense-description">{{ expense.description }}</span><span class="expense-id">Record #{{ expense.id }}</span></td>
+                <td><span class="category-pill">{{ expense.category }}</span></td>
+                <td class="align-right amount-cell">₹{{ '%.2f'|format(expense.amount) }}</td>
+                <td class="action-cell"><form method="post" action="{{ url_for('delete_expense', expense_id=expense.id) }}" onsubmit="return confirm('Delete this expense?');"><button type="submit" class="delete-button" aria-label="Delete expense {{ expense.id }}">×</button></form></td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state history-empty"><span>＋</span><h3>No expenses found</h3><p>Try another month or add your first expense above.</p></div>
+      {% endif %}
+    </section>
+    <footer><span>Simple Expense Tracker</span><span>Built with Python · Flask · CSV</span></footer>
+  </main>
+</body>
+</html>
